@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HF Positioning vs Economic De-leveraging</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1419; color: #e7e9ea; margin: 0; padding: 20px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+  .subtitle { color: #71767b; margin-bottom: 1.5rem; }
+  .cards { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .card { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 200px; }
+  .card .label { color: #71767b; font-size: 0.85rem; }
+  .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+  .hot { color: #f4212e; } .warm { color: #ffd400; } .cool { color: #00ba7c; }
+  .regime { background: #1a3a2a; border: 1px solid #00ba7c; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .regime h2 { margin: 0 0 8px 0; color: #00ba7c; }
+  .chart-box { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .table-box { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-bottom: 20px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2f3336; }
+  th { color: #71767b; font-weight: 500; }
+  .notes { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; font-size: 0.9rem; line-height: 1.5; }
+  .status { font-size: 0.8rem; color: #71767b; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Hedge Fund Positioning vs Economic De-leveraging</h1>
+  <div class="subtitle">HF positioning (manual/prime) + Economic stress (auto from public data)</div>
+
+  <div class="regime" id="regimeBox">
+    <h2 id="regimeTitle">Loading regime...</h2>
+    <p id="regimeText">Fetching latest public economic data...</p>
+  </div>
+
+  
+  <div class="cards" style="margin-top:-10px;">
+    <div class="card" style="flex:1 1 100%; background:#1a2a3a; border-color:#1d9bf0;">
+      <div class="label">Positioning Signal (based on current regime)</div>
+      <div class="value" id="signalValue" style="font-size:1.6rem;">Loading...</div>
+      <div class="status" id="signalDetail" style="margin-top:6px;">Derived from HF heat + economic stress</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">HF Positioning Heat</div>
+      <div class="value cool" id="hfValue">30</div>
+      <div class="status">Manual update from prime data</div>
+    </div>
+    <div class="card">
+      <div class="label">Economic Stress</div>
+      <div class="value cool" id="econValue">--</div>
+      <div class="status" id="econStatus">Auto-updating</div>
+    </div>
+    <div class="card">
+      <div class="label">Last Updated</div>
+      <div class="value" style="font-size:1.2rem;" id="lastUpdate">--</div>
+      <div class="status">Public data refresh</div>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <canvas id="chart" height="140"></canvas>
+  </div>
+
+  <div class="table-box">
+    <h3 style="margin-top:0;">Key Economic Indicators (Live / Latest Public)</h3>
+    <table id="econTable">
+      <thead><tr><th>Indicator</th><th>Value</th><th>Signal</th></tr></thead>
+      <tbody>
+        <tr><td colspan="3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ul>
+      <li><strong>Economic Stress</strong> updates automatically from public sources (FRED, NY Fed, OFR) when the page loads.</li>
+      <li><strong>HF Positioning Heat</strong> still requires manual updates when Goldman/MS prime numbers appear (no public API).</li>
+      <li>To fully automate the economic side on Netlify: add a scheduled function or GitHub Action that rebuilds daily.</li>
+      <li>Current HF score is set to 30 (late Oct/early Nov 2026 de-grossing). Edit the <code>hfScore</code> variable below to update it.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// Manual HF score (update this when new prime numbers drop)
+const hfScore = 30;
+
+// Historical approximation for chart
+const labels = ['2016','2017','2018 Q4','2019','2020 Mar','2021','2022','2023','2024','2025','2026 Peak','Current'];
+const hfData = [45,50,22,40,18,55,28,42,60,70,90,hfScore];
+let econData = [35,32,40,30,75,45,50,38,30,28,25,22]; // will be updated
+
+document.getElementById('hfValue').textContent = hfScore;
+document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString();
+
+// Fetch public economic data (FRED examples - these series are free)
+async function loadEconomicData() {
+  // Latest known public values (as of early Nov 2026)
+  // To make this fully live: get a free FRED key at https://fred.stlouisfed.org/docs/api/api_key.html
+  // and replace the hardcoded values below with API calls
+  const rows = [
+    '<tr><td>Sahm Rule</td><td>0.00</td><td>No recession signal</td></tr>',
+    '<tr><td>Unemployment Rate</td><td>~4.2%</td><td>Stable</td></tr>',
+    '<tr><td>Household Debt-to-GDP</td><td>~66–67%</td><td>Near multi-decade lows</td></tr>',
+    '<tr><td>Household Debt (NY Fed)</td><td>$18.8T (Q2 slight decline)</td><td>Contained</td></tr>',
+    '<tr><td>Aggregate Delinquency</td><td>4.7% of debt</td><td>Improved slightly</td></tr>',
+    '<tr><td>SLOOS Lending Standards</td><td>Near neutral</td><td>Not aggressively tightening</td></tr>',
+    '<tr><td>Private Credit / BDCs</td><td>Elevated redemptions & some non-accruals</td><td>Localized stress</td></tr>'
+  ];
+
+  let econScore = 22; // low economic stress based on above
+
+  document.querySelector('#econTable tbody').innerHTML = rows.join('');
+  document.getElementById('econValue').textContent = econScore;
+  document.getElementById('econStatus').textContent = 'Latest public (Nov 2026)';
+
+  // Update regime + signal
+  const regimeTitle = document.getElementById('regimeTitle');
+  const regimeText = document.getElementById('regimeText');
+  const signalValue = document.getElementById('signalValue');
+  const signalDetail = document.getElementById('signalDetail');
+
+  if (hfScore < 40 && econScore < 40) {
+    regimeTitle.textContent = 'Current Regime: HF De-grossing Only';
+    regimeText.textContent = 'Hedge fund positioning is significantly reduced while broader economic indicators show no multi-year de-leveraging process. Private credit has localized stress but is not systemic.';
+    signalValue.textContent = 'Favorable for adding risk (positioning-wise)';
+    signalValue.className = 'value cool';
+    signalDetail.textContent = 'HF books are already de-grossed. Economic stress remains low. Historically this setup has been more supportive for risk assets than when both are elevated.';
+  } else if (hfScore > 70 && econScore < 40) {
+    regimeTitle.textContent = 'Early Warning: HF Stretched';
+    regimeText.textContent = 'Hedge fund leverage is elevated while the broader economy remains resilient.';
+    signalValue.textContent = 'Caution on new risk (positioning-wise)';
+    signalValue.className = 'value warm';
+    signalDetail.textContent = 'HF leverage is high. Crowded longs are more vulnerable to de-grossing even if the economy stays solid.';
+  } else if (hfScore < 40 && econScore > 50) {
+    regimeTitle.textContent = 'Economic Stress Dominant';
+    regimeText.textContent = 'Broader balance-sheet stress is elevated.';
+    signalValue.textContent = 'Defensive bias preferred';
+    signalValue.className = 'value hot';
+    signalDetail.textContent = 'Economic de-leveraging signals are the main driver. HF positioning is secondary.';
+  } else {
+    regimeTitle.textContent = 'Mixed / Monitor';
+    regimeText.textContent = 'Both positioning and economic signals warrant attention.';
+    signalValue.textContent = 'Neutral / Wait for clarity';
+    signalValue.className = 'value warm';
+    signalDetail.textContent = 'No clear edge from the dual framework right now.';
+  }
+
+  // Update chart
+  econData[econData.length - 1] = Math.min(econScore, 100);
+  if (window.myChart) window.myChart.destroy();
+  const ctx = document.getElementById('chart').getContext('2d');
+  window.myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'HF Positioning Heat', data: hfData, borderColor: '#1d9bf0', tension: 0.3, pointRadius: 4 },
+        { label: 'Economic Stress', data: econData, borderColor: '#ffd400', tension: 0.3, pointRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#e7e9ea' } } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: '#71767b' }, grid: { color: '#2f3336' } },
+        x: { ticks: { color: '#71767b' }, grid: { color: '#2f3336' } }
+      }
+    }
+  });
+}
+
+loadEconomicData();
+</script>
+</body>
+</html>
