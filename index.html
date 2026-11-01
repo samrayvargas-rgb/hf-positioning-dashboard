@@ -28,14 +28,13 @@
 <body>
 <div class="container">
   <h1>Hedge Fund Positioning vs Economic De-leveraging</h1>
-  <div class="subtitle">HF positioning (manual/prime) + Economic stress (auto from public data)</div>
+  <div class="subtitle">HF positioning (manual) + Economic stress (auto from FRED)</div>
 
   <div class="regime" id="regimeBox">
-    <h2 id="regimeTitle">Loading regime...</h2>
+    <h2 id="regimeTitle">Loading...</h2>
     <p id="regimeText">Fetching latest public economic data...</p>
   </div>
 
-  
   <div class="cards" style="margin-top:-10px;">
     <div class="card" style="flex:1 1 100%; background:#1a2a3a; border-color:#1d9bf0;">
       <div class="label">Positioning Signal (based on current regime)</div>
@@ -48,7 +47,7 @@
     <div class="card">
       <div class="label">HF Positioning Heat</div>
       <div class="value cool" id="hfValue">30</div>
-      <div class="status">Manual update from prime data</div>
+      <div class="status" id="hfFreshness">Checking freshness...</div>
     </div>
     <div class="card">
       <div class="label">Economic Stress</div>
@@ -58,7 +57,7 @@
     <div class="card">
       <div class="label">Last Updated</div>
       <div class="value" style="font-size:1.2rem;" id="lastUpdate">--</div>
-      <div class="status">Public data refresh</div>
+      <div class="status">Page load</div>
     </div>
   </div>
 
@@ -67,11 +66,11 @@
   </div>
 
   <div class="table-box">
-    <h3 style="margin-top:0;">Key Economic Indicators (Live / Latest Public)</h3>
+    <h3 style="margin-top:0;">Key Economic Indicators (Live from FRED)</h3>
     <table id="econTable">
       <thead><tr><th>Indicator</th><th>Value</th><th>Signal</th></tr></thead>
       <tbody>
-        <tr><td colspan="3">Loading...</td></tr>
+        <tr><td colspan="3">Loading live data...</td></tr>
       </tbody>
     </table>
   </div>
@@ -79,48 +78,83 @@
   <div class="notes">
     <h3>Notes</h3>
     <ul>
-      <li><strong>Economic Stress</strong> updates automatically from public sources (FRED, NY Fed, OFR) when the page loads.</li>
-      <li><strong>HF Positioning Heat</strong> still requires manual updates when Goldman/MS prime numbers appear (no public API).</li>
-      <li>To fully automate the economic side on Netlify: add a scheduled function or GitHub Action that rebuilds daily.</li>
-      <li>Current HF score is set to 30 (late Oct/early Nov 2026 de-grossing). Edit the <code>hfScore</code> variable below to update it.</li>
+      <li><strong>Economic indicators</strong> update automatically from FRED on every page load (Sahm rule + unemployment) once you add a key.</li>
+      <li><strong>HF Positioning Heat</strong> is still manual (edit <code>hfScore</code> and <code>hfLastUpdated</code>). The card turns yellow after 10 days and red after 21 days.</li>
+      <li>Look for Goldman/MS prime notes on X when the freshness warning appears.</li>
+      <li>To use your own FRED key: replace <code>YOUR_FRED_KEY</code> below with a free key from <a href="https://fred.stlouisfed.org/docs/api/api_key.html" style="color:#1d9bf0;">fred.stlouisfed.org</a>.</li>
     </ul>
   </div>
 </div>
 
 <script>
-// Manual HF score (update this when new prime numbers drop)
-const hfScore = 30;
+// ===== MANUAL UPDATE ONLY =====
+const hfScore = 30;                  // Change this when new Goldman/MS numbers appear
+const hfLastUpdated = '2026-11-01';  // YYYY-MM-DD of the last time you updated hfScore
+// ==============================
 
-// Historical approximation for chart
+const FRED_KEY = 'YOUR_FRED_KEY'; // <-- Replace with your free FRED API key
+
 const labels = ['2016','2017','2018 Q4','2019','2020 Mar','2021','2022','2023','2024','2025','2026 Peak','Current'];
 const hfData = [45,50,22,40,18,55,28,42,60,70,90,hfScore];
-let econData = [35,32,40,30,75,45,50,38,30,28,25,22]; // will be updated
+let econData = [35,32,40,30,75,45,50,38,30,28,25,22];
 
 document.getElementById('hfValue').textContent = hfScore;
 document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString();
 
-// Fetch public economic data (FRED examples - these series are free)
-async function loadEconomicData() {
-  // Latest known public values (as of early Nov 2026)
-  // To make this fully live: get a free FRED key at https://fred.stlouisfed.org/docs/api/api_key.html
-  // and replace the hardcoded values below with API calls
-  const rows = [
-    '<tr><td>Sahm Rule</td><td>0.00</td><td>No recession signal</td></tr>',
-    '<tr><td>Unemployment Rate</td><td>~4.2%</td><td>Stable</td></tr>',
-    '<tr><td>Household Debt-to-GDP</td><td>~66–67%</td><td>Near multi-decade lows</td></tr>',
-    '<tr><td>Household Debt (NY Fed)</td><td>$18.8T (Q2 slight decline)</td><td>Contained</td></tr>',
-    '<tr><td>Aggregate Delinquency</td><td>4.7% of debt</td><td>Improved slightly</td></tr>',
-    '<tr><td>SLOOS Lending Standards</td><td>Near neutral</td><td>Not aggressively tightening</td></tr>',
-    '<tr><td>Private Credit / BDCs</td><td>Elevated redemptions & some non-accruals</td><td>Localized stress</td></tr>'
-  ];
+// HF freshness warning
+const lastUpdate = new Date(hfLastUpdated);
+const daysOld = Math.floor((new Date() - lastUpdate) / (1000 * 60 * 60 * 24));
+const freshnessEl = document.getElementById('hfFreshness');
+if (daysOld > 21) {
+  freshnessEl.innerHTML = `<span style="color:#f4212e; font-weight:600;">⚠ Stale (${daysOld} days old) — check for new prime data</span>`;
+} else if (daysOld > 10) {
+  freshnessEl.innerHTML = `<span style="color:#ffd400;">Getting older (${daysOld} days) — worth checking</span>`;
+} else {
+  freshnessEl.textContent = `Updated ${daysOld} day${daysOld === 1 ? '' : 's'} ago`;
+}
 
-  let econScore = 22; // low economic stress based on above
+async function fetchFRED(series) {
+  if (FRED_KEY === 'YOUR_FRED_KEY') return null;
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${FRED_KEY}&file_type=json&sort_order=desc&limit=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return parseFloat(data.observations?.[0]?.value);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadEconomicData() {
+  const sahm = await fetchFRED('SAHMREALTIME');
+  const unrate = await fetchFRED('UNRATE');
+
+  let econScore = 22;
+  const rows = [];
+
+  if (sahm !== null && !isNaN(sahm)) {
+    rows.push(`<tr><td>Sahm Rule</td><td>${sahm.toFixed(2)}</td><td>${sahm >= 0.5 ? 'Recession signal' : 'No signal'}</td></tr>`);
+    if (sahm > 0.3) econScore += 15;
+  } else {
+    rows.push('<tr><td>Sahm Rule</td><td>0.00</td><td>No recession signal (add FRED key for live)</td></tr>');
+  }
+
+  if (unrate !== null && !isNaN(unrate)) {
+    rows.push(`<tr><td>Unemployment Rate</td><td>${unrate.toFixed(1)}%</td><td>${unrate > 4.5 ? 'Elevated' : 'Stable'}</td></tr>`);
+    if (unrate > 4.5) econScore += 10;
+  } else {
+    rows.push('<tr><td>Unemployment Rate</td><td>~4.2%</td><td>Stable (add FRED key for live)</td></tr>');
+  }
+
+  rows.push('<tr><td>Household Debt-to-GDP</td><td>~66–67%</td><td>Near multi-decade lows</td></tr>');
+  rows.push('<tr><td>Household Debt (NY Fed)</td><td>$18.8T</td><td>Contained</td></tr>');
+  rows.push('<tr><td>Aggregate Delinquency</td><td>4.7% of debt</td><td>Improved slightly</td></tr>');
+  rows.push('<tr><td>Private Credit / BDCs</td><td>Elevated redemptions</td><td>Localized stress</td></tr>');
 
   document.querySelector('#econTable tbody').innerHTML = rows.join('');
-  document.getElementById('econValue').textContent = econScore;
-  document.getElementById('econStatus').textContent = 'Latest public (Nov 2026)';
+  document.getElementById('econValue').textContent = Math.min(econScore, 100);
+  document.getElementById('econStatus').textContent = FRED_KEY === 'YOUR_FRED_KEY' ? 'Add FRED key for live' : 'Live from FRED';
 
-  // Update regime + signal
   const regimeTitle = document.getElementById('regimeTitle');
   const regimeText = document.getElementById('regimeText');
   const signalValue = document.getElementById('signalValue');
@@ -128,22 +162,22 @@ async function loadEconomicData() {
 
   if (hfScore < 40 && econScore < 40) {
     regimeTitle.textContent = 'Current Regime: HF De-grossing Only';
-    regimeText.textContent = 'Hedge fund positioning is significantly reduced while broader economic indicators show no multi-year de-leveraging process. Private credit has localized stress but is not systemic.';
+    regimeText.textContent = 'Hedge fund positioning is significantly reduced while broader economic indicators show no multi-year de-leveraging process.';
     signalValue.textContent = 'Favorable for adding risk (positioning-wise)';
     signalValue.className = 'value cool';
-    signalDetail.textContent = 'HF books are already de-grossed. Economic stress remains low. Historically this setup has been more supportive for risk assets than when both are elevated.';
+    signalDetail.textContent = 'HF books are already de-grossed. Economic stress remains low.';
   } else if (hfScore > 70 && econScore < 40) {
     regimeTitle.textContent = 'Early Warning: HF Stretched';
     regimeText.textContent = 'Hedge fund leverage is elevated while the broader economy remains resilient.';
     signalValue.textContent = 'Caution on new risk (positioning-wise)';
     signalValue.className = 'value warm';
-    signalDetail.textContent = 'HF leverage is high. Crowded longs are more vulnerable to de-grossing even if the economy stays solid.';
-  } else if (hfScore < 40 && econScore > 50) {
+    signalDetail.textContent = 'HF leverage is high. Crowded longs are more vulnerable to de-grossing.';
+  } else if (econScore > 50) {
     regimeTitle.textContent = 'Economic Stress Dominant';
     regimeText.textContent = 'Broader balance-sheet stress is elevated.';
     signalValue.textContent = 'Defensive bias preferred';
     signalValue.className = 'value hot';
-    signalDetail.textContent = 'Economic de-leveraging signals are the main driver. HF positioning is secondary.';
+    signalDetail.textContent = 'Economic de-leveraging signals are the main driver.';
   } else {
     regimeTitle.textContent = 'Mixed / Monitor';
     regimeText.textContent = 'Both positioning and economic signals warrant attention.';
@@ -152,7 +186,6 @@ async function loadEconomicData() {
     signalDetail.textContent = 'No clear edge from the dual framework right now.';
   }
 
-  // Update chart
   econData[econData.length - 1] = Math.min(econScore, 100);
   if (window.myChart) window.myChart.destroy();
   const ctx = document.getElementById('chart').getContext('2d');
