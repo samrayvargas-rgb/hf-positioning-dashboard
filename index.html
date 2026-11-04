@@ -24,6 +24,13 @@
   .notes { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; font-size: 0.9rem; line-height: 1.5; }
   .status { font-size: 0.8rem; color: #71767b; margin-top: 4px; }
   .section { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .val-card { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-top: 16px; line-height: 1.6; }
+  .val-card h3 { margin-top: 0; }
+  .val-card h4 { margin: 16px 0 8px 0; color: #1d9bf0; }
+  .search-box { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-box input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #2f3336; background: #0f1419; color: #e7e9ea; font-size: 1rem; }
+  .search-box button { padding: 10px 16px; border-radius: 8px; border: none; background: #1d9bf0; color: white; font-weight: 600; cursor: pointer; }
+  .search-box button:hover { background: #1a8cd8; }
 </style>
 </head>
 <body>
@@ -66,15 +73,24 @@
     <h3 style="margin-top:0;">Sector Rotation (HF Focus)</h3>
     <p><strong>Current bias:</strong> Selling Tech / AI / Semiconductors. Limited evidence of rotation into other sectors.</p>
     <p><strong>Rolling out of:</strong> Technology, Semiconductors, AI-related names (fastest pace of tech selling since at least 2016 per Goldman).</p>
-    <p><strong>Rolling into:</strong> No clear broad rotation. Some short covering and selective additions, but overall still net de-grossing. Financials and Energy have not shown consistent large-scale buying in the latest notes.</p>
-    <p style="color:#71767b; font-size:0.85rem;">Updated from latest Goldman/MS prime commentary (late Oct 2026). Sector detail is sporadic.</p>
+    <p><strong>Rolling into:</strong> No clear broad rotation. Some short covering and selective additions, but overall still net de-grossing.</p>
+    <p style="color:#71767b; font-size:0.85rem;">Updated from latest Goldman/MS prime commentary (late Oct 2026).</p>
   </div>
 
   <div class="section">
     <h3 style="margin-top:0;">Technical Context</h3>
     <p><strong>Crowded names:</strong> Many AI/semi leaders experienced sharp drawdowns in late October. Several are now testing or sitting near short-term support after the de-grossing wave.</p>
-    <p><strong>Broader indexes:</strong> Nasdaq and tech-heavy indexes saw their worst weeks in months. Oversold readings appeared on shorter timeframes, but the larger trend remains intact pending follow-through.</p>
-    <p><strong>Implication:</strong> Positioning has been cleaned up. Further downside would likely require new fundamental deterioration rather than pure positioning pressure. Stabilization in the crowded names would be the clearest signal that re-risking can begin.</p>
+    <p><strong>Broader indexes:</strong> Nasdaq and tech-heavy indexes saw their worst weeks in months. Oversold readings appeared on shorter timeframes.</p>
+    <p><strong>Implication:</strong> Positioning has been cleaned up. Further downside would likely require new fundamental deterioration rather than pure positioning pressure.</p>
+  </div>
+
+  <div class="section">
+    <h3 style="margin-top:0;">Simple Valuation Lookup</h3>
+    <div class="search-box">
+      <input type="text" id="tickerInput" placeholder="Enter ticker or company (e.g. NVDA, SKHY, MU)" />
+      <button onclick="lookupValuation()">Lookup</button>
+    </div>
+    <div id="valuationResult"></div>
   </div>
 
   <div class="chart-box">
@@ -94,10 +110,9 @@
   <div class="notes">
     <h3>Notes</h3>
     <ul>
-      <li><strong>Economic indicators</strong> update automatically from FRED on every page load (Sahm rule + unemployment) once you add a key.</li>
-      <li><strong>HF Positioning Heat</strong> is still manual (edit <code>hfScore</code> and <code>hfLastUpdated</code>). The card turns yellow after 10 days and red after 21 days.</li>
-      <li>Sector rotation and technical notes are updated when new Goldman/MS commentary appears.</li>
-      <li>To use your own FRED key: replace <code>YOUR_FRED_KEY</code> below with a free key from <a href="https://fred.stlouisfed.org/docs/api/api_key.html" style="color:#1d9bf0;">fred.stlouisfed.org</a>.</li>
+      <li><strong>Economic indicators</strong> update automatically from FRED on every page load once you add a key.</li>
+      <li><strong>HF Positioning Heat</strong> is still manual (edit <code>hfScore</code> and <code>hfLastUpdated</code>). Yellow after 10 days, red after 21 days.</li>
+      <li>Sector rotation, technical notes, and valuation data are updated manually when new information appears.</li>
     </ul>
   </div>
 </div>
@@ -107,6 +122,268 @@ const hfScore = 30;
 const hfLastUpdated = '2026-11-01';
 const FRED_KEY = 'YOUR_FRED_KEY';
 
+// Simple Valuation Data (easy to extend)
+const valuationData = {
+  "NVDA": {
+    name: "NVIDIA",
+    price: "$209",
+    marketCap: "$5.1T",
+    verdict: "Fair",
+    trailingPE: 52,
+    forwardPE: 32,
+    earnings: "Net income ~$72B TTM, EPS ~$2.90",
+    revenue: "~$130B TTM",
+    margins: { net: 55, operating: 62, gross: 75 },
+    analystTarget: "$240 (+15%)",
+    demand: {
+      current: "AI infrastructure demand remains strong but growth is decelerating from peak rates.",
+      y1: "Continued data-center growth expected, though hyperscaler spending scrutiny is rising.",
+      y3_5: "AI inference and enterprise adoption should support solid growth if returns on AI capex materialize.",
+      y5_10: "Long-term AI compute demand looks durable, but competition and cyclicality will increase."
+    },
+    fairValue: { conservative: "$160", base: "$210", optimistic: "$280" },
+    bottomLine: "NVIDIA remains the clear leader in AI accelerators. Valuation is rich on trailing numbers but more reasonable on forward estimates if growth holds. Further upside depends on hyperscalers continuing to spend at elevated levels."
+  },
+  "TSMC": {
+    name: "Taiwan Semiconductor",
+    price: "$185",
+    marketCap: "$960B",
+    verdict: "Fair",
+    trailingPE: 28,
+    forwardPE: 22,
+    earnings: "Net income ~$34B TTM, EPS ~$6.60",
+    revenue: "~$90B TTM",
+    margins: { net: 38, operating: 45, gross: 58 },
+    analystTarget: "$210 (+14%)",
+    demand: {
+      current: "Advanced node demand from AI and HPC remains robust.",
+      y1: "Capacity expansions and pricing power support steady growth.",
+      y3_5: "Leading-edge process leadership should continue to drive share gains.",
+      y5_10: "Long-term semiconductor demand tied to AI and edge computing looks favorable."
+    },
+    fairValue: { conservative: "$150", base: "$190", optimistic: "$240" },
+    bottomLine: "TSMC is the critical foundry for advanced AI chips. Valuation is more reasonable than many pure AI names. Geopolitical risk remains the main overhang."
+  },
+  "SKHY": {
+    name: "SK Hynix",
+    price: "$210",
+    marketCap: "$145B",
+    verdict: "Fair",
+    trailingPE: 18,
+    forwardPE: 12,
+    earnings: "Net income recovering strongly, EPS elevated on HBM",
+    revenue: "~$50B TTM",
+    margins: { net: 22, operating: 28, gross: 42 },
+    analystTarget: "$250 (+19%)",
+    demand: {
+      current: "HBM demand for AI is the primary driver.",
+      y1: "Memory pricing and HBM mix should support earnings.",
+      y3_5: "AI memory demand looks durable, but traditional DRAM/NAND remains cyclical.",
+      y5_10: "HBM leadership provides an edge, though competition will intensify."
+    },
+    fairValue: { conservative: "$160", base: "$220", optimistic: "$280" },
+    bottomLine: "SK Hynix is a key HBM supplier. Valuation is more attractive than many AI names after the recent selloff, but memory remains cyclical."
+  },
+  "MU": {
+    name: "Micron Technology",
+    price: "$105",
+    marketCap: "$117B",
+    verdict: "Fair",
+    trailingPE: 22,
+    forwardPE: 14,
+    earnings: "Net income recovering, EPS ~$4.80 TTM",
+    revenue: "~$30B TTM",
+    margins: { net: 18, operating: 24, gross: 38 },
+    analystTarget: "$130 (+24%)",
+    demand: {
+      current: "HBM and data-center DRAM are the bright spots.",
+      y1: "Memory pricing recovery continues but remains volatile.",
+      y3_5: "AI-related memory demand should provide a floor.",
+      y5_10: "Cyclical industry with AI providing a structural tailwind."
+    },
+    fairValue: { conservative: "$80", base: "$110", optimistic: "$150" },
+    bottomLine: "Micron offers exposure to HBM at a lower multiple than pure-play AI names. Earnings recovery is underway, but memory cycles can still surprise."
+  },
+  "SNDK": {
+    name: "SanDisk",
+    price: "$65",
+    marketCap: "$12B",
+    verdict: "Speculative",
+    trailingPE: null,
+    forwardPE: 18,
+    earnings: "Currently unprofitable or thin margins",
+    revenue: "~$6B TTM",
+    margins: { net: -2, operating: 4, gross: 28 },
+    analystTarget: "$80 (+23%)",
+    demand: {
+      current: "NAND pricing remains under pressure.",
+      y1: "Recovery dependent on supply discipline and AI storage demand.",
+      y3_5: "Enterprise SSD demand could improve with AI workloads.",
+      y5_10: "Long-term storage needs grow, but competition is intense."
+    },
+    fairValue: { conservative: "$40", base: "$70", optimistic: "$100" },
+    bottomLine: "SanDisk is more speculative. NAND remains oversupplied. Any sustained recovery depends on better industry discipline and AI-driven storage demand."
+  },
+  "MRVL": {
+    name: "Marvell Technology",
+    price: "$78",
+    marketCap: "$67B",
+    verdict: "Fair",
+    trailingPE: 45,
+    forwardPE: 28,
+    earnings: "Net income ~$1.5B TTM, EPS ~$1.75",
+    revenue: "~$5.8B TTM",
+    margins: { net: 26, operating: 32, gross: 58 },
+    analystTarget: "$95 (+22%)",
+    demand: {
+      current: "Data-center and custom ASIC demand is solid.",
+      y1: "AI-related custom silicon should support growth.",
+      y3_5: "Diversified exposure to cloud and infrastructure looks favorable.",
+      y5_10: "Long-term growth tied to data-center expansion."
+    },
+    fairValue: { conservative: "$60", base: "$85", optimistic: "$110" },
+    bottomLine: "Marvell offers diversified AI and data-center exposure. Valuation is elevated but more reasonable than pure GPU names if custom ASIC demand continues."
+  },
+  "IREN": {
+    name: "Iris Energy",
+    price: "$12",
+    marketCap: "$2.8B",
+    verdict: "Speculative",
+    trailingPE: null,
+    forwardPE: null,
+    earnings: "Currently unprofitable",
+    revenue: "~$200M TTM",
+    margins: { net: -15, operating: -8, gross: 35 },
+    analystTarget: "$18 (+50%)",
+    demand: {
+      current: "Bitcoin mining and early AI/HPC hosting.",
+      y1: "Dependent on Bitcoin price and power costs.",
+      y3_5: "Potential AI hosting upside if contracts materialize.",
+      y5_10: "Highly speculative; success depends on power access and AI demand."
+    },
+    fairValue: { conservative: "$6", base: "$14", optimistic: "$25" },
+    bottomLine: "Iris Energy is speculative. The AI hosting narrative is unproven at scale. The stock is more sensitive to Bitcoin and power costs than to traditional valuation metrics."
+  },
+  "LAR": {
+    name: "Lithium Americas",
+    price: "$4.20",
+    marketCap: "$900M",
+    verdict: "Speculative",
+    trailingPE: null,
+    forwardPE: null,
+    earnings: "Pre-revenue / early stage",
+    revenue: "Minimal",
+    margins: { net: null, operating: null, gross: null },
+    analystTarget: "$8 (+90%)",
+    demand: {
+      current: "Lithium prices remain depressed.",
+      y1: "Project development timelines are key.",
+      y3_5: "EV demand recovery could support lithium prices.",
+      y5_10: "Long-term EV adoption is the thesis, but execution and commodity prices dominate near term."
+    },
+    fairValue: { conservative: "$2", base: "$5", optimistic: "$10" },
+    bottomLine: "Lithium Americas is a development-stage story. Valuation is highly sensitive to lithium prices and project execution. Not suitable for traditional earnings-based valuation."
+  },
+  "COST": {
+    name: "Costco",
+    price: "$920",
+    marketCap: "$410B",
+    verdict: "Fair",
+    trailingPE: 52,
+    forwardPE: 48,
+    earnings: "Net income ~$7.8B TTM, EPS ~$17.60",
+    revenue: "~$260B TTM",
+    margins: { net: 3.0, operating: 3.8, gross: 12.5 },
+    analystTarget: "$980 (+7%)",
+    demand: {
+      current: "Membership model remains resilient.",
+      y1: "Steady traffic and modest same-store growth expected.",
+      y3_5: "Warehouse expansion and membership growth support the model.",
+      y5_10: "Long-term compounder with durable competitive advantages."
+    },
+    fairValue: { conservative: "$780", base: "$920", optimistic: "$1,100" },
+    bottomLine: "Costco is a high-quality compounder trading at a premium multiple. The membership model provides stability, but upside is more modest than growth names."
+  },
+  "CC": {
+    name: "Chemours",
+    price: "$18",
+    marketCap: "$2.7B",
+    verdict: "Undervalued",
+    trailingPE: 12,
+    forwardPE: 9,
+    earnings: "Net income ~$220M TTM, EPS ~$1.50",
+    revenue: "~$6B TTM",
+    margins: { net: 3.7, operating: 8, gross: 22 },
+    analystTarget: "$24 (+33%)",
+    demand: {
+      current: "Titanium dioxide and chemical demand is mixed.",
+      y1: "Cyclical recovery possible if industrial activity improves.",
+      y3_5: "Specialty chemicals exposure provides some stability.",
+      y5_10: "Commodity chemical cycles dominate long-term returns."
+    },
+    fairValue: { conservative: "$14", base: "$20", optimistic: "$28" },
+    bottomLine: "Chemours trades at a low multiple. The business is cyclical and faces some legal overhangs, but the valuation offers a margin of safety if earnings stabilize."
+  }
+};
+
+function lookupValuation() {
+  const input = document.getElementById('tickerInput').value.trim().toUpperCase();
+  const resultDiv = document.getElementById('valuationResult');
+  const data = valuationData[input];
+
+  if (!data) {
+    resultDiv.innerHTML = `<div class="val-card"><p>No data found for "${input}". Available: ${Object.keys(valuationData).join(', ')}</p></div>`;
+    return;
+  }
+
+  const peText = data.trailingPE ? `${data.trailingPE}x trailing` : 'N/A';
+  const fwdText = data.forwardPE ? `${data.forwardPE}x forward` : 'N/A';
+  const marginsText = data.margins.net !== null 
+    ? `Net ${data.margins.net}% | Operating ${data.margins.operating}% | Gross ${data.margins.gross}%`
+    : 'Not meaningful (early stage)';
+
+  resultDiv.innerHTML = `
+    <div class="val-card">
+      <h3>Simple Valuation – ${data.name} (${input})</h3>
+      <p><em>(Margins + demand outlook included)</em></p>
+      <ul>
+        <li><strong>Price:</strong> ${data.price}</li>
+        <li><strong>Market Cap:</strong> ${data.marketCap}</li>
+        <li><strong>Verdict:</strong> ${data.verdict} (${peText} / ${fwdText})</li>
+      </ul>
+      <h4>Checklist</h4>
+      <ul>
+        <li>Earnings: ${data.earnings}</li>
+        <li>Revenue: ${data.revenue}</li>
+        <li><strong>Profit Margins:</strong> ${marginsText}</li>
+        <li>Multiple: ${peText} PE (forward ${fwdText})</li>
+        <li>Analyst targets: ${data.analystTarget}</li>
+      </ul>
+      <h4>Demand Outlook</h4>
+      <ul>
+        <li><strong>Current:</strong> ${data.demand.current}</li>
+        <li><strong>1 year:</strong> ${data.demand.y1}</li>
+        <li><strong>3–5 years:</strong> ${data.demand.y3_5}</li>
+        <li><strong>5–10 years:</strong> ${data.demand.y5_10}</li>
+      </ul>
+      <h4>Fair Value Ranges</h4>
+      <ul>
+        <li>Conservative: ${data.fairValue.conservative}</li>
+        <li>Base: ${data.fairValue.base}</li>
+        <li>Optimistic: ${data.fairValue.optimistic}</li>
+      </ul>
+      <h4>Bottom Line</h4>
+      <p>${data.bottomLine}</p>
+    </div>
+  `;
+}
+
+// Allow Enter key
+document.getElementById('tickerInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') lookupValuation();
+});
+
+// Existing dashboard logic
 const labels = ['2016','2017','2018 Q4','2019','2020 Mar','2021','2022','2023','2024','2025','2026 Peak','Current'];
 const hfData = [45,50,22,40,18,55,28,42,60,70,90,hfScore];
 let econData = [35,32,40,30,75,45,50,38,30,28,25,22];
@@ -132,15 +409,12 @@ async function fetchFRED(series) {
     const res = await fetch(url);
     const data = await res.json();
     return parseFloat(data.observations?.[0]?.value);
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 async function loadEconomicData() {
   const sahm = await fetchFRED('SAHMREALTIME');
   const unrate = await fetchFRED('UNRATE');
-
   let econScore = 22;
   const rows = [];
 
