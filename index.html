@@ -1,1 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HF Positioning vs Economic De-leveraging</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1419; color: #e7e9ea; margin: 0; padding: 20px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+  .subtitle { color: #71767b; margin-bottom: 1.5rem; }
+  .cards { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .card { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 200px; }
+  .card .label { color: #71767b; font-size: 0.85rem; }
+  .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+  .hot { color: #f4212e; } .warm { color: #ffd400; } .cool { color: #00ba7c; }
+  .regime { background: #1a3a2a; border: 1px solid #00ba7c; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .regime h2 { margin: 0 0 8px 0; color: #00ba7c; }
+  .chart-box { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .table-box { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-bottom: 20px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2f3336; }
+  th { color: #71767b; font-weight: 500; }
+  .notes { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; font-size: 0.9rem; line-height: 1.5; }
+  .status { font-size: 0.8rem; color: #71767b; margin-top: 4px; }
+  .section { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .val-card { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 20px; margin-top: 16px; line-height: 1.6; }
+  .val-card h3 { margin-top: 0; }
+  .val-card h4 { margin: 16px 0 8px 0; color: #1d9bf0; }
+  .search-box { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-box input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #2f3336; background: #0f1419; color: #e7e9ea; font-size: 1rem; }
+  .search-box button { padding: 10px 16px; border-radius: 8px; border: none; background: #1d9bf0; color: white; font-weight: 600; cursor: pointer; }
+  .search-box button:hover { background: #1a8cd8; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab { padding: 8px 16px; border-radius: 8px; background: #16181c; border: 1px solid #2f3336; color: #e7e9ea; cursor: pointer; font-weight: 500; }
+  .tab.active { background: #1d9bf0; border-color: #1d9bf0; }
+  .loading { color: #71767b; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Hedge Fund Positioning vs Economic De-leveraging</h1>
+  <div class="subtitle">HF positioning (manual) + Economic stress (auto from FRED)</div>
 
+  <div class="regime" id="regimeBox">
+    <h2 id="regimeTitle">Loading...</h2>
+    <p id="regimeText">Fetching latest public economic data...</p>
+  </div>
+
+  <div class="cards" style="margin-top:-10px;">
+    <div class="card" style="flex:1 1 100%; background:#1a2a3a; border-color:#1d9bf0;">
+      <div class="label">Positioning Signal (based on current regime)</div>
+      <div class="value" id="signalValue" style="font-size:1.6rem;">Loading...</div>
+      <div class="status" id="signalDetail" style="margin-top:6px;">Derived from HF heat + economic stress</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">HF Positioning Heat</div>
+      <div class="value cool" id="hfValue">30</div>
+      <div class="status" id="hfFreshness">Checking freshness...</div>
+    </div>
+    <div class="card">
+      <div class="label">Economic Stress</div>
+      <div class="value cool" id="econValue">--</div>
+      <div class="status" id="econStatus">Auto-updating</div>
+    </div>
+    <div class="card">
+      <div class="label">Last Updated</div>
+      <div class="value" style="font-size:1.2rem;" id="lastUpdate">--</div>
+      <div class="status">Page load</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 style="margin-top:0;">Sector Rotation (HF Focus)</h3>
+    <p><strong>Current bias:</strong> Selling Tech / AI / Semiconductors. Limited evidence of rotation into other sectors.</p>
+    <p><strong>Rolling out of:</strong> Technology, Semiconductors, AI-related names (fastest pace of tech selling since at least 2016 per Goldman).</p>
+    <p><strong>Rolling into:</strong> No clear broad rotation. Some short covering and selective additions, but overall still net de-grossing.</p>
+    <p style="color:#71767b; font-size:0.85rem;">Updated from latest Goldman/MS prime commentary (late Oct 2026).</p>
+  </div>
+
+  <div class="section">
+    <h3 style="margin-top:0;">Technical Context</h3>
+    <p><strong>Crowded names:</strong> Many AI/semi leaders experienced sharp drawdowns in late October. Several are now testing or sitting near short-term support after the de-grossing wave.</p>
+    <p><strong>Broader indexes:</strong> Nasdaq and tech-heavy indexes saw their worst weeks in months. Oversold readings appeared on shorter timeframes.</p>
+    <p><strong>Implication:</strong> Positioning has been cleaned up. Further downside would likely require new fundamental deterioration rather than pure positioning pressure.</p>
+  </div>
+
+  <div class="section">
+    <h3 style="margin-top:0;">Simple Valuation Lookup <span style="font-size:0.75rem; color:#71767b;">(any ticker)</span></h3>
+    <div class="tabs">
+      <div class="tab active" id="tabStocks" onclick="switchTab('stocks')">Stocks</div>
+      <div class="tab" id="tabCrypto" onclick="switchTab('crypto')">Crypto</div>
+    </div>
+    <div class="search-box">
+      <input type="text" id="tickerInput" placeholder="Enter any ticker (e.g. NVDA, PEPE, SOL)" />
+      <button onclick="lookupValuation()">Lookup</button>
+    </div>
+    <div id="valuationResult"></div>
+  </div>
+
+  <div class="chart-box">
+    <canvas id="chart" height="140"></canvas>
+  </div>
+
+  <div class="table-box">
+    <h3 style="margin-top:0;">Key Economic Indicators (Live from FRED)</h3>
+    <table id="econTable">
+      <thead><tr><th>Indicator</th><th>Value</th><th>Signal</th></tr></thead>
+      <tbody>
+        <tr><td colspan="3">Loading live data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ul>
+      <li><strong>Economic indicators</strong> update automatically from FRED on every page load once you add a key.</li>
+      <li><strong>HF Positioning Heat</strong> is still manual (edit <code>hfScore</code> and <code>hfLastUpdated</code>). Yellow after 10 days, red after 21 days.</li>
+      <li><strong>Valuation Lookup</strong> tries to fetch live data for any ticker. Results depend on the public data source responding.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const hfScore = 30;
+const hfLastUpdated = '2026-11-01';
+const FRED_KEY = 'YOUR_FRED_KEY';
+
+let currentTab = 'stocks';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabStocks').classList.toggle('active', tab === 'stocks');
+  document.getElementById('tabCrypto').classList.toggle('active', tab === 'crypto');
+  document.getElementById('valuationResult').innerHTML = '';
+  document.getElementById('tickerInput').placeholder = tab === 'stocks' 
+    ? 'Enter any stock ticker (e.g. NVDA, AAPL, TSLA)' 
+    : 'Enter any crypto (e.g. PEPE, SOL, ETH, BTC)';
+}
+
+async function fetchStockData(ticker) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const meta = json?.chart?.result?.[0]?.meta;
+    if (!meta || !meta.regularMarketPrice) return null;
+    return {
+      price: meta.regularMarketPrice,
+      previousClose: meta.previousClose,
+      currency: meta.currency || 'USD'
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchCryptoData(ticker) {
+  try {
+    const id = ticker.toLowerCase();
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json[id];
+    if (!data || !data.usd) return null;
+    return {
+      price: data.usd,
+      marketCap: data.usd_market_cap,
+      volume: data.usd_24h_vol
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function formatCap(num) {
+  if (!num) return '—';
+  if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(0)}M`;
+  return `$${num.toLocaleString()}`;
+}
+
+function renderStockCard(ticker, data) {
+  const change = data.previousClose ? ((data.price - data.previousClose) / data.previousClose * 100).toFixed(2) : null;
+  const changeText = change !== null ? ` (${change > 0 ? '+' : ''}${change}% vs prev close)` : '';
+  return `
+    <div class="val-card">
+      <h3>Simple Valuation – ${ticker}</h3>
+      <p><em>(Live price from Yahoo Finance)</em></p>
+      <ul>
+        <li><strong>Price:</strong> $${Number(data.price).toFixed(2)}${changeText}</li>
+        <li><strong>Currency:</strong> ${data.currency}</li>
+      </ul>
+      <h4>Note</h4>
+      <p>Full fundamentals (PE, margins, analyst targets) require a paid data source or manual entry. This card shows the live price. For a complete valuation, ask for an updated script with the specific ticker.</p>
+    </div>
+  `;
+}
+
+function renderCryptoCard(ticker, data) {
+  return `
+    <div class="val-card">
+      <h3>Simple Valuation – ${ticker.toUpperCase()}</h3>
+      <p><em>(Live data from CoinGecko)</em></p>
+      <ul>
+        <li><strong>Price:</strong> $${Number(data.price).toLocaleString(undefined, {maximumFractionDigits: 8})}</li>
+        <li><strong>Market Cap:</strong> ${formatCap(data.marketCap)}</li>
+        <li><strong>24h Volume:</strong> ${formatCap(data.volume)}</li>
+      </ul>
+      <h4>Note</h4>
+      <p>Fee multiple, burn rate, and tokenomics details are not available from free public APIs. This card shows live price and market cap. For a full fee-multiple analysis, ask for an updated script with the specific coin.</p>
+    </div>
+  `;
+}
+
+async function lookupValuation() {
+  const input = document.getElementById('tickerInput').value.trim();
+  const resultDiv = document.getElementById('valuationResult');
+  if (!input) return;
+
+  resultDiv.innerHTML = `<div class="val-card loading">Looking up ${input}...</div>`;
+
+  if (currentTab === 'stocks') {
+    const data = await fetchStockData(input.toUpperCase());
+    if (data) {
+      resultDiv.innerHTML = renderStockCard(input.toUpperCase(), data);
+    } else {
+      resultDiv.innerHTML = `<div class="val-card"><p>Could not fetch data for "${input}". The public source may be rate-limited or the ticker may be invalid. Try again in a moment.</p></div>`;
+    }
+  } else {
+    const data = await fetchCryptoData(input);
+    if (data) {
+      resultDiv.innerHTML = renderCryptoCard(input, data);
+    } else {
+      resultDiv.innerHTML = `<div class="val-card"><p>Could not fetch data for "${input}". CoinGecko may be rate-limited or the coin ID may be different. Try the common ID (e.g. "pepe", "solana", "ethereum").</p></div>`;
+    }
+  }
+}
+
+document.getElementById('tickerInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') lookupValuation();
+});
+
+// Existing dashboard logic
+const labels = ['2016','2017','2018 Q4','2019','2020 Mar','2021','2022','2023','2024','2025','2026 Peak','Current'];
+const hfData = [45,50,22,40,18,55,28,42,60,70,90,hfScore];
+let econData = [35,32,40,30,75,45,50,38,30,28,25,22];
+
+document.getElementById('hfValue').textContent = hfScore;
+document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString();
+
+const lastUpdate = new Date(hfLastUpdated);
+const daysOld = Math.floor((new Date() - lastUpdate) / (1000 * 60 * 60 * 24));
+const freshnessEl = document.getElementById('hfFreshness');
+if (daysOld > 21) {
+  freshnessEl.innerHTML = `<span style="color:#f4212e; font-weight:600;">⚠ Stale (${daysOld} days old) — check for new prime data</span>`;
+} else if (daysOld > 10) {
+  freshnessEl.innerHTML = `<span style="color:#ffd400;">Getting older (${daysOld} days) — worth checking</span>`;
+} else {
+  freshnessEl.textContent = `Updated ${daysOld} day${daysOld === 1 ? '' : 's'} ago`;
+}
+
+async function fetchFRED(series) {
+  if (FRED_KEY === 'YOUR_FRED_KEY') return null;
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${FRED_KEY}&file_type=json&sort_order=desc&limit=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return parseFloat(data.observations?.[0]?.value);
+  } catch (e) { return null; }
+}
+
+async function loadEconomicData() {
+  const sahm = await fetchFRED('SAHMREALTIME');
+  const unrate = await fetchFRED('UNRATE');
+  let econScore = 22;
+  const rows = [];
+
+  if (sahm !== null && !isNaN(sahm)) {
+    rows.push(`<tr><td>Sahm Rule</td><td>${sahm.toFixed(2)}</td><td>${sahm >= 0.5 ? 'Recession signal' : 'No signal'}</td></tr>`);
+    if (sahm > 0.3) econScore += 15;
+  } else {
+    rows.push('<tr><td>Sahm Rule</td><td>0.00</td><td>No recession signal (add FRED key for live)</td></tr>');
+  }
+
+  if (unrate !== null && !isNaN(unrate)) {
+    rows.push(`<tr><td>Unemployment Rate</td><td>${unrate.toFixed(1)}%</td><td>${unrate > 4.5 ? 'Elevated' : 'Stable'}</td></tr>`);
+    if (unrate > 4.5) econScore += 10;
+  } else {
+    rows.push('<tr><td>Unemployment Rate</td><td>~4.2%</td><td>Stable (add FRED key for live)</td></tr>');
+  }
+
+  rows.push('<tr><td>Household Debt-to-GDP</td><td>~66–67%</td><td>Near multi-decade lows</td></tr>');
+  rows.push('<tr><td>Household Debt (NY Fed)</td><td>$18.8T</td><td>Contained</td></tr>');
+  rows.push('<tr><td>Aggregate Delinquency</td><td>4.7% of debt</td><td>Improved slightly</td></tr>');
+  rows.push('<tr><td>Private Credit / BDCs</td><td>Elevated redemptions</td><td>Localized stress</td></tr>');
+
+  document.querySelector('#econTable tbody').innerHTML = rows.join('');
+  document.getElementById('econValue').textContent = Math.min(econScore, 100);
+  document.getElementById('econStatus').textContent = FRED_KEY === 'YOUR_FRED_KEY' ? 'Add FRED key for live' : 'Live from FRED';
+
+  const regimeTitle = document.getElementById('regimeTitle');
+  const regimeText = document.getElementById('regimeText');
+  const signalValue = document.getElementById('signalValue');
+  const signalDetail = document.getElementById('signalDetail');
+
+  if (hfScore < 40 && econScore < 40) {
+    regimeTitle.textContent = 'Current Regime: HF De-grossing Only';
+    regimeText.textContent = 'Hedge fund positioning is significantly reduced while broader economic indicators show no multi-year de-leveraging process.';
+    signalValue.textContent = 'Favorable for adding risk (positioning-wise)';
+    signalValue.className = 'value cool';
+    signalDetail.textContent = 'HF books are already de-grossed. Economic stress remains low.';
+  } else if (hfScore > 70 && econScore < 40) {
+    regimeTitle.textContent = 'Early Warning: HF Stretched';
+    regimeText.textContent = 'Hedge fund leverage is elevated while the broader economy remains resilient.';
+    signalValue.textContent = 'Caution on new risk (positioning-wise)';
+    signalValue.className = 'value warm';
+    signalDetail.textContent = 'HF leverage is high. Crowded longs are more vulnerable to de-grossing.';
+  } else if (econScore > 50) {
+    regimeTitle.textContent = 'Economic Stress Dominant';
+    regimeText.textContent = 'Broader balance-sheet stress is elevated.';
+    signalValue.textContent = 'Defensive bias preferred';
+    signalValue.className = 'value hot';
+    signalDetail.textContent = 'Economic de-leveraging signals are the main driver.';
+  } else {
+    regimeTitle.textContent = 'Mixed / Monitor';
+    regimeText.textContent = 'Both positioning and economic signals warrant attention.';
+    signalValue.textContent = 'Neutral / Wait for clarity';
+    signalValue.className = 'value warm';
+    signalDetail.textContent = 'No clear edge from the dual framework right now.';
+  }
+
+  econData[econData.length - 1] = Math.min(econScore, 100);
+  if (window.myChart) window.myChart.destroy();
+  const ctx = document.getElementById('chart').getContext('2d');
+  window.myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'HF Positioning Heat', data: hfData, borderColor: '#1d9bf0', tension: 0.3, pointRadius: 4 },
+        { label: 'Economic Stress', data: econData, borderColor: '#ffd400', tension: 0.3, pointRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#e7e9ea' } } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: '#71767b' }, grid: { color: '#2f3336' } },
+        x: { ticks: { color: '#71767b' }, grid: { color: '#2f3336' } }
+      }
+    }
+  });
+}
+
+loadEconomicData();
+</script>
+</body>
+</html>

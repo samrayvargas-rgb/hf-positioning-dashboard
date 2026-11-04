@@ -1,0 +1,6 @@
+[build]
+  publish = "."
+
+# Optional: schedule daily rebuilds if you add a function later
+# [[plugins]]
+# package = "@netlify/plugin-scheduled-functions"
